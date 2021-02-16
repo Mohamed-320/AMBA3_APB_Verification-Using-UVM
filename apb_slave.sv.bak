@@ -1,100 +1,95 @@
 
-module apb_slave (  output reg [3:0] prdata, //dataout from slave 
-                    input penable,// to enable read or write
-                    input pwrite, // control signal 
-                    input psel,  // select signal
-                    input clk,   // posedge clk
-                    input reset, // negedge reset              
-                    input [7:0] paddr,  // 8-bit address            
-                    input [7:0] pwdata  // 8-bit write data
-                    );
-  
+/*********************************** APB_SLAVE*******************************/
+module apb_slave (  input    PCLK,  // @(posedge)
+                    input    RESET, //@(negedge)
+                    input    PENABLE, // R/W enable 
+                    input    PSEL, // select signal
+                    input    PWRITE, //control signal
+                    input    [7:0] PADDR,
+                    input    [7:0] PWDATA, // data Write [8-bit]
+                    output  reg [3:0] PRDATA // data sent by slave
+);
+
 parameter IDLE=2'b00,SETUP=2'b01,ACCESS=2'b10;
-
-
+  reg [7:0] slave [0:255];  // 256 bytes
   reg [1:0]state;
-
-  reg [7:0] slave [0:255];  // slaveory-256 bytes
-  reg [7:0] prdata1;
-  
-  always @ (posedge clk or negedge reset )
-  begin// : fsm_slave
-    if (!reset)
+  reg [7:0] PRDATA1;
+ 
+/*finite state machine logic for slave*/
+  always @ (posedge PCLK or negedge RESET )
+  begin
+    if (!RESET)
       state = IDLE;
     else 
      begin
-     prdata1 = 8'b0;
+     PRDATA1 = 8'b0;
      case(state)
     
-   
+   /*IDLE STATE*/
       IDLE   :
-        begin //: idle_state
-	  if ( ! penable )
+        begin 
+	  if (!PENABLE )
 	   begin
-            if ( psel == 0 ) 
+            if (PSEL == 0) 
 	     begin
               state = IDLE;
-	      prdata1 = 8'b0;
+	      PRDATA1 = 8'b0;
              end
 	    
-            else if ( ( psel == 1 ) && ( penable == 0 ) )
+            else if ((PSEL == 1)&&(PENABLE == 0))
              begin
               state = SETUP;
 	     end 
 	        
         end 
       end
-
+     /*SETUP STATE*/
       SETUP  :
-        begin //: setup_state
+        begin 
 	  
-          if( ( psel == 1 ) && ( penable == 1) )
+          if((PSEL == 1)&&(PENABLE == 0))
             begin
-            state = ACCESS;
+            state = SETUP;
             end
         end 
-      
+      /*ACCESS STATE*/
       ACCESS :
-        begin //: enable_state
-	 
-          if ( ( psel == 1 ) && ( penable == 0 ) )
-            state  = SETUP;
-	
+        begin
+          if ((PSEL == 1)&&(PENABLE == 1))
+            state  = ACCESS;
           else
-          begin //: no_transfer
-            state  = IDLE;
-          end //: no_transfer
+          begin 
+            state  = IDLE; // No Transfer
+          end 
           
-	  if(!pwrite)        
-            prdata1 = slave[paddr];
+	  if(!PWRITE)        
+            PRDATA1 = slave[PADDR];
 	  
-          if (( psel == 0 ) && ( penable == 0 ))  
+          if ((PSEL == 0)&&(PENABLE == 0)) 
             state = IDLE;
-	
-        end //: enable_state
-      
+        end 
       default : state = IDLE;
     endcase
 end
 
-  end //: state_change
+  end 
   
-  always @ (posedge clk or negedge reset)
+  always @ (posedge PCLK or negedge RESET)
   begin 
-    if (!reset)
+    if (!RESET)
     begin
-      prdata = 8'b0;
+      PRDATA = 8'b0;
     end  
     else
-      if ( (state == ACCESS ) && ( pwrite == 0 ) )
-        prdata = prdata1;
+      if ( (state == ACCESS ) && ( PWRITE == 0 ) )
+        PRDATA = PRDATA1;
   end
 
-  always @ (posedge clk or negedge rst)
+  always @ (posedge PCLK or negedge RESET)
   begin
-    if ( (state == ACCESS) && (pwrite ==1) )
+    if ( (state == ACCESS) && (PWRITE ==1) )
      begin
-        slave [paddr] = pwdata; 
+        slave [PADDR] = PWDATA; 
      end 
   end
   

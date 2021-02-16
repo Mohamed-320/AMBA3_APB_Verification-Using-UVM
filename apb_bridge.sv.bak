@@ -1,159 +1,143 @@
 
-module apb_bridge ( output reg  psel,// select signals
-                    output reg  penable,      // enable signal
-                    output reg  pwrite, // write signal
-                    output reg [7:0] paddr,  // 8-bit address
-                    output reg [7:0] pwdata, // 8-bit data                    	
-                    input clk,   // clock signal
-                    input rst, // negedge reset
-		    input [20:0] system_bus,       
-	            input [7:0] prdata    
-                    );
+/*********************************** APB_Bridge*******************************/
+module apb_bridge ( 
+                    output   reg PENABLE, // R/W enable 
+                    output   reg PSEL, // select signal
+                    output   reg PWRITE, //control signal
+                    output   reg [7:0] PADDR,
+                    output   reg [7:0] PWDATA, // data Write [8-bit]
+                    input    PCLK,  // @(posedge)
+                    input   bit   RESET, //@(negedge)
+                    input [3:0] PRDATA, // data sent by slave
+		    input [20:0] system_bus
+);
   
-  parameter IDLE = 2'd0, SETUP = 2'd1, ACCESS  = 2'd2;
-  parameter READ= 2'd0, WRITE=2'd1;
-  
-  reg [1:0] state; 
-  reg [7:0] pwdata1;
-  reg [7:0] paddr1;
-  reg penable1;
-  reg b_psel;
-
+ parameter IDLE = 2'd0, SETUP = 2'd1, ACCESS  = 2'd2;
+ parameter READ= 2'd0, WRITE=2'd1; //R/W = 0/1
+ 
+  reg PENABLE1;
+  reg PSEL1;
+  reg [7:0] PADDR1;
+  reg [7:0] PWDATA1;
+  reg [1:0] state;
   reg [7:0] sys_data;
   reg [7:0] sys_addr;
-  reg [1:0] sys_kind;
- // reg  [ 1 : 0 ]      sel slave;
-  reg sys_active;     
- 
-  
-  always @ ( * )
+  reg [1:0] sys_type;
+  reg sys_active; 
+
+always @ ( * )
   begin
     sys_data = system_bus [7:0];
     sys_addr = system_bus [15:8];
-  //  sel slave   = system_bus [ 17 : 16 ];
-    sys_kind = system_bus [19:18];
+    sys_type = system_bus [19:18];
     sys_active =system_bus [20];  
   end
 
-  always @ (posedge clk or negedge reset)
-  begin//read or write
-    
-    if(!reset)
-     pwrite <= 1'b0;
-    
+  /*******************************APB_Bridge Config. [R/W]**********************/
+  always @ (posedge PCLK or negedge RESET)
+  begin
+    if(!RESET)
+     PWRITE <= 1'b0;
     else 
     begin
       if ( state == SETUP )
        begin
-	 case (sys_kind)
+	 case (sys_type)
 	    READ :
 	     begin
-	       pwrite  <= 1'b0;
+	       PWRITE  <= 1'b0;
 	     end
 	    WRITE :
 	     begin
- 	       pwrite  <= 1'b1;
+ 	       PWRITE  <= 1'b1;
 	     end
 	  endcase
      end  
-end   // always @ (posedge pclk)
- end  //reset condition
-  
-  
-  always @ ( posedge clk or negedge reset )
+end  
+ end  
+   /*******************************reset condition***********************************/
+  always @ ( posedge PCLK or negedge RESET )
   begin 
-    if(!reset)
+    if(!RESET)
       state <= IDLE;
     else
-    
-  // FSM state transition
+ /**************** States Transitions_Finite-State Machine *************************/
 
   begin 
-    paddr1   = 0;
-   // pwdata1  = 0;
-    penable1 = 0;
-    b_psel    = 0;
+    PENABLE = 0;
+    PSEL    = 0;
+    PADDR   = 0;
+    PWDATA  = 0;
     state = IDLE; 
-
     case ( state )
-      
+      /*************** IDLE STATE**************/
       IDLE :  
-        begin// : idle_state
+        begin
           if (sys_active == 1)
           begin
               state = SETUP;
-              b_psel = 4'b0;
-              penable1 = 0;
+              PENABLE1 = 0;
+              PSEL1 = 4'b0;
           end
           else 
-	      penable1 = 0;
+	      PENABLE1 = 0;
 	   end
-      
+      /*************** SETUP STATE**************/
       SETUP :
         begin 
-           penable1  = 0;
-	   paddr1 = sys_addr;
-    	   pwdata1 = sys_data;
+           PENABLE1  = 0;
+	   PADDR1 = sys_addr;
+    	   PWDATA1 = sys_data;
            state  = ACCESS;
         
-        if ( ( sys_kind == 2'b01 ) || ( sys_kind == 2'b10 ) ) 
-	             b_psel = 1'b1;
-	      else if ( ( sys_kind == 2'b00 ) || ( sys_kind == 2'b11 ) )
-	             state  = IDLE ;
+        if ( ( sys_type == 2'b01 ) || ( sys_type == 2'b10 ) ) 
+	             PSEL1 = 1'b1;
+	      else if ( ( sys_type == 2'b00 ) || ( sys_type == 2'b11 ) )
+	             state    = IDLE ;
 	     end
-      
-
-
+     /*************** SETUP STATE**************/
       ACCESS  :
         begin            
-                penable1 = 1;  
-	        b_psel = 1; 
-	        
-	        // write
-          if( sys_kind == 2'b01)
+                PENABLE1 = 1;  
+	        PSEL1 = 1; 
+	
+          if( sys_type == 2'b01) //write
           begin             
-            paddr1    = sys_addr;
-            pwdata1   = sys_data;
-          end 
-          
-          //read
-          else if ( sys_kind == 2'b10 )         
-                paddr1   = sys_addr;
+            PADDR1    = sys_addr;
+            PWDATA1   = sys_data;
+          end
+          else if ( sys_type == 2'b10 )   //read      
+             PADDR1   = sys_type;
         
-          // state transition to SETUP in case of back to back write etc.,
+    ////// state transition to SETUP in case of back to back write //////
            
-          if ( ( sys_kind == 2'b01 ) || ( sys_kind == 2'b10 ) )
+          if ( ( sys_type == 2'b01 ) || ( sys_type == 2'b10 ) )
   	           state = SETUP;
 	        else    
               state  = IDLE;          
-        end //: active_state  
-      
+        end  
       default : state = IDLE; 
-    endcase // case ( pre_state )
-    
-  end //: state_change
+    endcase 
+  end 
 end
-//assigning the internal signal values to the outputs of SLAVE
 
-  always @ (posedge clk or negedge reset)
+  /*************assigning the internal signal values to the outputs of SLAVE*************/
+  always @ (posedge PCLK or negedge RESET)
   begin
-    if (!reset)
+    if (!RESET)
     begin
-      psel <= 4'b0000;
-      paddr <= 8'b0;
-      pwdata <= 8'b0;
-      penable   <= 1'b0;
-      //sys_rd_data <= 8'b0;	
+      PSEL <= 4'b0000;
+      PENABLE   <= 1'b0;
+      PADDR <= 8'b0;
+      PWDATA <= 8'b0;
     end
+
     else if ((state == ACCESS )|| (state == SETUP) || ( sys_active == 0) )
     begin
-      paddr   <= paddr1;
-      pwdata  <= pwdata1;
-      psel    <= b_psel;
-      penable <= penable1;
-      
+      PSEL    <= PSEL1;
+      PENABLE <= PENABLE1;
+      PADDR   <= PADDR1;
+      PWDATA  <= PWDATA1;
     end
   end
-  
-
 endmodule

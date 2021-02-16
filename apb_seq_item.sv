@@ -10,10 +10,10 @@ import uvm_pkg::*;        // Standard UVM pkg
 
 class apb_seq_item extends uvm_sequence_item;
 
- rand bit [20:0] sysbus;
- bit [7:0] prdata;
+ rand bit [20:0] sysbus; 
+ bit [7:0] PRDATA; // data sent by slave
 
-  //Utility macro
+  //Utility macros
   `uvm_object_utils_begin(apb_seq_item)
   `uvm_field_int(sysbus,UVM_ALL_ON)
   `uvm_object_utils_end

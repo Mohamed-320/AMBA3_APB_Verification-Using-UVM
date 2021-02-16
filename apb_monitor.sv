@@ -29,10 +29,12 @@ apb_seq_item trans_collected; //seq_item handle, used as a place holder for samp
 
   virtual task run_phase(uvm_phase phase);
   forever begin
-   @(posedge intf.MONITOR.clk);
+   @(posedge intf.MONITOR.PCLK);
    trans_collected.sysbus=intf.monitor_cb.sysbus;
-   @(posedge intf.MONITOR.clk);
-   trans_collected.prdata=intf.monitor_cb.prdata;
+
+   @(posedge intf.MONITOR.PCLK);
+   trans_collected.PRDATA=intf.monitor_cb.PRDATA;
+
    item_collected_port.write(trans_collected);
    end
   endtask: run_phase

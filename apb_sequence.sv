@@ -1,6 +1,5 @@
 /**************************************************************************************************
 // Sequence generates the stimulus and sends to driver via sequencer
-// An agent can have any number of sequences
 **************************************************************************************************/
 `ifndef APB_SEQUENCE
 `define APB_SEQUENCE
@@ -16,14 +15,15 @@ function new (string name = "apb_sequence");
 super.new(name);
 endfunction
 
+//Logic to generate and send the sequence_item is added inside the body() method
 virtual task body();
-repeat(2)  begin
+
       req=apb_seq_item::type_id::create("req");
       wait_for_grant();
       req.randomize();
       send_request(req);
       wait_for_item_done();
-      end
+      
 endtask
 endclass
 

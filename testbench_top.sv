@@ -5,27 +5,27 @@
 
 module apb_testbench_top;
 
-  bit clk;                //clock signal declaration
-  bit reset;                //reset signal declaration
-  always #5 clk = ~clk;   //clock generation
-  
-  //reset Generation
-  initial begin
-    reset = 1;
-    #5 reset =0;
-  end
-  
+  bit PCLK;                //clock signal declaration
+  bit RESET;                //reset signal declaration
+
   //interface instance
-  apb_intf intf(clk,reset);
-  
+   apb_intf intf (PCLK,RESET);
+  //   apb_intf intf (PCLK,RESET,sysbus,PRDATA);
   //DUT instance, interface signals are connected to the DUT ports
   top_apb DUT (
-    .clk(intf.clk),
-    .reset(intf.rst),
+    .PCLK(intf.PCLK),
+    .RESET(intf.RESET),
     .sysbus(intf.sysbus),
-    .prdata(intf.rdata)
+    .PRDATA(intf.RDATA)
    );
-  
+
+  always #5 PCLK = ~PCLK;   //clock generation
+  //reset Generation
+  initial begin
+    RESET = 1;
+    #5 RESET =0;
+  end
+
   //passing the interface handle to lower heirarchy using set method and enabling the wave dump
   initial begin 
     uvm_config_db#(virtual apb_intf)::set(uvm_root::get(),"*","intf",intf);

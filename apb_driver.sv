@@ -33,15 +33,16 @@ class apb_driver extends uvm_driver#(apb_seq_item);
  seq_item_port.item_done();
  end
  endtask : run_phase
- // drive
+ 
+ // drive phase
  virtual task drive();
  req.print();
  
- @(posedge intf.DRIVER.clk);
+ @(posedge intf.DRIVER.PCLK);
   `driv_if.sysbus <= req.sysbus;
 
- @(posedge intf.DRIVER.clk);
-  req.prdata = `driv_if.prdata;
+ @(posedge intf.DRIVER.PCLK);
+  req.PRDATA= `driv_if.PRDATA;
  endtask : drive
 endclass : apb_driver
  `endif
